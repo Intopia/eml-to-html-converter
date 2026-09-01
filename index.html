@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>.eml to HTML converter</title>
+<style>
+  :root {
+    --ink: #1c1c1c;
+    --muted: #5a5a5a;
+    --line: #c9c9c9;
+    --bg: #fbfbfa;
+    --panel: #ffffff;
+    --accent: #2b5f8a;
+    --warn-bg: #fdf3e3;
+    --warn-line: #b07b1f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 60rem; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .lede { color: var(--muted); margin: 0 0 2rem; max-width: 46rem; }
+  h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  input[type="file"] { font: inherit; max-width: 100%; }
+  button {
+    font: inherit;
+    padding: .5rem 1rem;
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+  }
+  button:hover { background: #234c6f; }
+  button:disabled { background: #8a8a8a; border-color: #8a8a8a; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid #000; outline-offset: 2px; }
+  textarea {
+    width: 100%;
+    min-height: 24rem;
+    font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    padding: .75rem;
+    border: 1px solid var(--line);
+    background: #fff;
+    resize: vertical;
+    white-space: pre;
+  }
+  .status { margin: 0 0 1rem; }
+  .status:empty { display: none; }
+  .status p { margin: 0 0 .35rem; }
+  .status .problem {
+    background: var(--warn-bg);
+    border-left: 4px solid var(--warn-line);
+    padding: .6rem .75rem;
+  }
+  .meta { color: var(--muted); font-size: .9rem; margin: 0 0 1rem; }
+  .meta dl { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: 0; }
+  .meta div { display: flex; gap: .35rem; }
+  .meta dt { font-weight: 600; }
+  .meta dd { margin: 0; }
+  .toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; flex-wrap: wrap; }
+  .copied { color: #1c6b3c; font-size: .9rem; }
+  .hidden { display: none; }
+  .notes { color: var(--muted); font-size: .9rem; }
+  .notes li { margin-bottom: .3rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>.eml to HTML converter</h1>
+  <p class="lede">Pick a saved email file and this pulls out the HTML part, decodes it, and shows the raw markup ready to copy. Everything happens in this browser tab. Nothing is uploaded anywhere.</p>
+
+  <div class="panel">
+    <h2><label for="file">Select a .eml file</label></h2>
+    <input type="file" id="file" accept=".eml,message/rfc822">
+  </div>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <div class="panel hidden" id="results">
+    <h2>Decoded HTML</h2>
+    <div class="meta" id="meta"></div>
+    <div class="toolbar">
+      <button type="button" id="copy">Copy to clipboard</button>
+      <span class="copied" id="copied" role="status" aria-live="polite"></span>
+    </div>
+    <textarea id="output" readonly spellcheck="false" aria-label="Decoded HTML source"></textarea>
+  </div>
+
+  <div class="panel">
+    <h2>Known limits</h2>
+    <ul class="notes">
+      <li>Inline images stay as <code>cid:</code> references. They will not resolve, which is fine for markup testing.</li>
+      <li>Plain-text-only emails produce a message, not a silent fallback to the text part.</li>
+      <li>Uncommon charsets fall back to UTF-8, and it says so when that happens.</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var fileInput = document.getElementById("file");
+  var statusEl = document.getElementById("status");
+  var resultsEl = document.getElementById("results");
+  var metaEl = document.getElementById("meta");
+  var outputEl = document.getElementById("output");
+  var copyBtn = document.getElementById("copy");
+  var copiedEl = document.getElementById("copied");
+
+  // --- MIME parsing -------------------------------------------------------
+
+  // Split a raw MIME section into headers and body at the first blank line.
+  function splitSection(raw) {
+    var match = /\r?\n\r?\n/.exec(raw);
+    if (!match) {
+      return { headers: parseHeaders(raw), body: "" };
+    }
+    return {
+      headers: parseHeaders(raw.slice(0, match.index)),
+      body: raw.slice(match.index + match[0].length)
+    };
+  }
+
+  function parseHeaders(text) {
+    // Unfold continuation lines first (a leading space or tab continues the previous header).
+    var unfolded = text.replace(/\r?\n[ \t]+/g, " ");
+    var headers = {};
+    unfolded.split(/\r?\n/).forEach(function (line) {
+      var m = /^([!-9;-~]+)[ \t]*:[ \t]*(.*)$/.exec(line);
+      if (!m) { return; }
+      var name = m[1].toLowerCase();
+      headers[name] = headers[name] ? headers[name] + " " + m[2] : m[2];
+    });
+    return headers;
+  }
+
+  // Pull a parameter such as boundary="..." or charset=utf-8 off a header value.
+  function getParam(headerValue, name) {
+    if (!headerValue) { return null; }
+    var re = new RegExp(";[ \\t]*" + name + "[ \\t]*=[ \\t]*(?:\"([^\"]*)\"|([^;\\s]+))", "i");
+    var m = re.exec(headerValue);
+    if (!m) { return null; }
+    return (m[1] !== undefined ? m[1] : m[2]).trim();
+  }
+
+  function mimeType(headers) {
+    var ct = headers["content-type"] || "text/plain";
+    return ct.split(";")[0].trim().toLowerCase();
+  }
+
+  // Split a multipart body on its boundary lines. Preamble and epilogue are dropped.
+  function splitParts(body, boundary) {
+    var delim = "--" + boundary;
+    var lines = body.split(/\r?\n/);
+    var parts = [];
+    var current = null;
+
+    for (var i = 0; i < lines.length; i++) {
+      var trimmed = lines[i].replace(/[ \t]+$/, "");
+      if (trimmed === delim) {
+        if (current) { parts.push(current.join("\n")); }
+        current = [];
+        continue;
+      }
+      if (trimmed === delim + "--") {
+        if (current) { parts.push(current.join("\n")); }
+        current = null;
+        break;
+      }
+      if (current) { current.push(lines[i]); }
+    }
+    if (current) { parts.push(current.join("\n")); }
+    return parts;
+  }
+
+  // Walk the tree looking for text/html. Recurses through mixed / alternative /
+  // related nesting. A part flagged as an attachment is only used as a last resort.
+  function findHtmlPart(section, depth) {
+    depth = depth || 0;
+    if (depth > 12) { return null; }
+
+    var type = mimeType(section.headers);
+
+    if (type.indexOf("multipart/") === 0) {
+      var boundary = getParam(section.headers["content-type"], "boundary");
+      if (!boundary) { return null; }
+      var parts = splitParts(section.body, boundary);
+      var fallback = null;
+      for (var i = 0; i < parts.length; i++) {
+        var found = findHtmlPart(splitSection(parts[i]), depth + 1);
+        if (!found) { continue; }
+        if (found.isAttachment) {
+          if (!fallback) { fallback = found; }
+        } else {
+          return found;
+        }
+      }
+      return fallback;
+    }
+
+    if (type === "text/html") {
+      var disp = (section.headers["content-disposition"] || "").trim().toLowerCase();
+      return { section: section, isAttachment: disp.indexOf("attachment") === 0 };
+    }
+
+    return null;
+  }
+
+  // --- Decoding -----------------------------------------------------------
+
+  function decodeQuotedPrintable(text) {
+    // Trailing whitespace on a line is transport padding, not content.
+    var cleaned = text.replace(/[ \t]+(\r?\n)/g, "$1");
+    // Soft line breaks: a lone "=" at end of line joins to the next line.
+    cleaned = cleaned.replace(/=\r?\n/g, "");
+
+    var bytes = [];
+    var encoder = new TextEncoder();
+
+    for (var i = 0; i < cleaned.length; i++) {
+      var ch = cleaned.charAt(i);
+      if (ch === "=" && /^[0-9A-Fa-f]{2}$/.test(cleaned.substr(i + 1, 2))) {
+        bytes.push(parseInt(cleaned.substr(i + 1, 2), 16));
+        i += 2;
+        continue;
+      }
+      var code = ch.charCodeAt(0);
+      if (code < 128) {
+        bytes.push(code);
+      } else {
+        // Shouldn't appear in valid QP, but pass it through rather than dropping it.
+        encoder.encode(ch).forEach(function (b) { bytes.push(b); });
+      }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  function decodeBase64(text) {
+    var binary = atob(text.replace(/[^A-Za-z0-9+/=]/g, ""));
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  function bytesToText(bytes, charset) {
+    var label = (charset || "utf-8").toLowerCase();
+    try {
+      return { text: new TextDecoder(label).decode(bytes), charsetUsed: label, fellBack: false };
+    } catch (e) {
+      return { text: new TextDecoder("utf-8").decode(bytes), charsetUsed: "utf-8", fellBack: true };
+    }
+  }
+
+  function decodePart(section) {
+    var encoding = (section.headers["content-transfer-encoding"] || "7bit").trim().toLowerCase();
+    var charset = getParam(section.headers["content-type"], "charset") || "utf-8";
+
+    if (encoding === "quoted-printable") {
+      var qp = bytesToText(decodeQuotedPrintable(section.body), charset);
+      return { text: qp.text, encoding: "quoted-printable", charset: qp.charsetUsed, fellBack: qp.fellBack };
+    }
+
+    if (encoding === "base64") {
+      var b64 = bytesToText(decodeBase64(section.body), charset);
+      return { text: b64.text, encoding: "base64", charset: b64.charsetUsed, fellBack: b64.fellBack };
+    }
+
+    // 7bit, 8bit, binary, or no header: already readable as it stands.
+    return { text: section.body, encoding: encoding, charset: charset, fellBack: false };
+  }
+
+  // --- Interface ----------------------------------------------------------
+
+  function say(html) {
+    statusEl.innerHTML = html;
+  }
+
+  function problem(message) {
+    say('<p class="problem">' + message + "</p>");
+    resultsEl.classList.add("hidden");
+    outputEl.value = "";
+  }
+
+  function showMeta(rows) {
+    var html = "<dl>";
+    rows.forEach(function (row) {
+      html += "<div><dt>" + row[0] + "</dt><dd>" + row[1] + "</dd></div>";
+    });
+    metaEl.innerHTML = html + "</dl>";
+  }
+
+  function convert(text, fileName) {
+    var message = splitSection(text);
+
+    if (!message.headers["content-type"] && !/^(from|to|subject|date|mime-version):/im.test(text)) {
+      problem("That file does not look like a saved email message. Export it from the mail client as <code>.eml</code> and try again.");
+      return;
+    }
+
+    var found = findHtmlPart(message);
+
+    if (!found) {
+      problem("No HTML part in this email. It looks like a plain-text-only message, so there is nothing for the tester to check. Ask the client for the HTML version.");
+      return;
+    }
+
+    var decoded;
+    try {
+      decoded = decodePart(found.section);
+    } catch (e) {
+      problem("The HTML part could not be decoded: " + e.message);
+      return;
+    }
+
+    var html = decoded.text.replace(/^\s+|\s+$/g, "");
+    if (!html) {
+      problem("The HTML part decoded to nothing. The file may be truncated.");
+      return;
+    }
+
+    outputEl.value = html;
+    resultsEl.classList.remove("hidden");
+    copiedEl.textContent = "";
+
+    var notes = [];
+    if (found.isAttachment) {
+      notes.push("The only HTML found was an attachment rather than the email body. Worth a look before you trust it.");
+    }
+    if (decoded.fellBack) {
+      notes.push("The stated character set is not supported here, so it was read as UTF-8. Check for odd characters.");
+    }
+    if (notes.length) {
+      say(notes.map(function (n) { return '<p class="problem">' + n + "</p>"; }).join(""));
+    } else {
+      say("<p>Found the HTML part in " + fileName + ".</p>");
+    }
+
+    showMeta([
+      ["Subject", message.headers.subject ? escapeText(message.headers.subject) : "(none)"],
+      ["Encoding", escapeText(decoded.encoding)],
+      ["Character set", escapeText(decoded.charset)],
+      ["Size", html.length.toLocaleString() + " characters"]
+    ]);
+  }
+
+  function escapeText(str) {
+    return String(str).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  fileInput.addEventListener("change", function () {
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) { return; }
+
+    say("<p>Reading " + escapeText(file.name) + "…</p>");
+
+    var reader = new FileReader();
+    reader.onload = function () {
+      convert(reader.result, escapeText(file.name));
+    };
+    reader.onerror = function () {
+      problem("That file could not be read. Try selecting it again.");
+    };
+    reader.readAsText(file);
+  });
+
+  copyBtn.addEventListener("click", function () {
+    var value = outputEl.value;
+    if (!value) { return; }
+
+    function done() { copiedEl.textContent = "Copied"; }
+    function failed() {
+      outputEl.focus();
+      outputEl.select();
+      copiedEl.textContent = "Could not copy automatically. The HTML is selected, so press Ctrl+C or Cmd+C.";
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(done, failed);
+    } else {
+      failed();
+    }
+  });
+})();
+</script>
+</body>
+</html>
