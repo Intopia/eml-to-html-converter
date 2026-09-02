@@ -3,121 +3,248 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>.eml to HTML converter</title>
+<title>EML to HTML converter - Intopia</title>
+<link rel="shortcut icon" href="https://intopia.digital/wp-content/uploads/2017/06/cropped-Intopia_FINAL_icon-32x32.png" sizes="32x32">
 <style>
-  :root {
-    --ink: #1c1c1c;
-    --muted: #5a5a5a;
-    --line: #c9c9c9;
-    --bg: #fbfbfa;
-    --panel: #ffffff;
-    --accent: #2b5f8a;
-    --warn-bg: #fdf3e3;
-    --warn-line: #b07b1f;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    padding: 2rem 1.25rem 4rem;
-    background: var(--bg);
-    color: var(--ink);
-    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  }
-  main { max-width: 60rem; margin: 0 auto; }
-  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
-  .lede { color: var(--muted); margin: 0 0 2rem; max-width: 46rem; }
-  h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-  input[type="file"] { font: inherit; max-width: 100%; }
-  button {
-    font: inherit;
-    padding: .5rem 1rem;
-    background: var(--accent);
-    color: #fff;
-    border: 1px solid var(--accent);
-    cursor: pointer;
-  }
-  button:hover { background: #234c6f; }
-  button:disabled { background: #8a8a8a; border-color: #8a8a8a; cursor: not-allowed; }
-  :focus-visible { outline: 3px solid #000; outline-offset: 2px; }
-  textarea {
-    width: 100%;
-    min-height: 24rem;
-    font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    padding: .75rem;
-    border: 1px solid var(--line);
-    background: #fff;
-    resize: vertical;
-    white-space: pre;
-  }
-  .status { margin: 0 0 1rem; }
-  .status:empty { display: none; }
-  .status p { margin: 0 0 .35rem; }
-  .status .problem {
-    background: var(--warn-bg);
-    border-left: 4px solid var(--warn-line);
-    padding: .6rem .75rem;
-  }
-  .meta { color: var(--muted); font-size: .9rem; margin: 0 0 1rem; }
-  .meta dl { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: 0; }
-  .meta div { display: flex; gap: .35rem; }
-  .meta dt { font-weight: 600; }
-  .meta dd { margin: 0; }
-  .toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; flex-wrap: wrap; }
-  .copied { color: #1c6b3c; font-size: .9rem; }
-  .hidden { display: none; }
-  .notes { color: var(--muted); font-size: .9rem; }
-  .notes li { margin-bottom: .3rem; }
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --ink: #16233d;
+  --ink-soft: #4a5875;
+  --paper: #efefef;
+  --panel: #ffffff;
+  --line: #d9d2be;
+  --border-strong: #dddddd;
+  --red: #a5322a;
+  --red-bg: #fbeae7;
+  --green: #29614a;
+  --green-bg: #e9f2ec;
+  --amber: #93641a;
+  --amber-bg: #faf1dc;
+  --neutral: #5b6472;
+  --neutral-bg: #f4f3ef;
+  --info: #29506b;
+  --info-bg: #e6eef3;
+  --focus: #1b4fbf;
+  --brand: #c03c0c;
+  --font-brand: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, Frutiger, 'Frutiger Linotype', Univers, Calibri, 'Gill Sans', 'Gill Sans MT', 'Myriad Pro', Myriad, 'DejaVu Sans Condensed', 'Liberation Sans', 'Nimbus Sans L', Tahoma, Geneva, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --radius: 4px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 40px 20px 80px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.wrap { max-width: 900px; margin: 0 auto; }
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.intopia-logo { width: 180px; height: auto; }
+
+.brand-text h1 {
+  font-family: var(--font-brand);
+  color: var(--brand);
+  font-size: 2.4rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.intro { max-width: 62ch; margin: 0 0 32px; }
+.intro p { margin: 0 0 8px; }
+.intro p:last-child { margin-bottom: 0; }
+.intro .privacy { font-weight: 600; }
+
+.card {
+  background: var(--panel);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+h2 {
+  font-family: var(--font-display);
+  color: var(--ink);
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+h2:focus, h2:focus-visible { outline-offset: 4px; }
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+input[type="file"] {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  max-width: 100%;
+  padding: 8px;
+  background: var(--panel);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+button {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 12px 22px;
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: #ffffff;
+  border: 2px solid var(--brand);
+}
+
+.btn-primary:hover { background: #a33309; border-color: #a33309; }
+
+:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.message {
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  border-left: 6px solid;
+}
+.message p { margin: 0; }
+.message p + p { margin-top: 8px; }
+
+.message-error { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.message-warning { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+
+.meta { margin: 0 0 16px; color: var(--ink-soft); font-size: 0.95rem; }
+.meta dl { display: flex; flex-wrap: wrap; gap: 4px 28px; margin: 0; }
+.meta div { display: flex; gap: 6px; }
+.meta dt { font-weight: 600; color: var(--ink); }
+.meta dd { margin: 0; }
+
+textarea {
+  width: 100%;
+  min-height: 420px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--panel);
+  padding: 16px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius);
+  resize: vertical;
+  white-space: pre;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.copy-status { color: var(--green); font-weight: 600; }
+.copy-status:empty { display: none; }
+
+.notes { margin: 0; padding-left: 20px; color: var(--ink-soft); }
+.notes li { margin-bottom: 8px; }
+.notes li:last-child { margin-bottom: 0; }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--neutral-bg);
+  padding: 1px 4px;
+  border-radius: var(--radius);
+}
+
+.hidden { display: none; }
 </style>
 </head>
 <body>
-<main>
-  <h1>.eml to HTML converter</h1>
-  <p class="lede">Pick a saved email file and this pulls out the HTML part, decodes it, and shows the raw markup ready to copy. Everything happens in this browser tab. Nothing is uploaded anywhere.</p>
+<div class="wrap">
 
-  <div class="panel">
-    <h2><label for="file">Select a .eml file</label></h2>
-    <input type="file" id="file" accept=".eml,message/rfc822">
-  </div>
-
-  <div class="status" id="status" role="status" aria-live="polite"></div>
-
-  <div class="panel hidden" id="results">
-    <h2>Decoded HTML</h2>
-    <div class="meta" id="meta"></div>
-    <div class="toolbar">
-      <button type="button" id="copy">Copy to clipboard</button>
-      <span class="copied" id="copied" role="status" aria-live="polite"></span>
+  <header class="brand">
+    <img src="https://intopia.digital/wp-content/themes/intopia-refresh/assets/images/intopia.png" alt="Intopia logo" class="intopia-logo">
+    <div class="brand-text">
+      <h1>EML to HTML converter</h1>
     </div>
-    <textarea id="output" readonly spellcheck="false" aria-label="Decoded HTML source"></textarea>
+  </header>
+
+  <div class="intro">
+    <p class="privacy">Nothing you upload here is sent anywhere. This converter runs entirely in your browser.</p>
+    <p>Select a saved email file and this pulls out the HTML part, decodes it, and shows you the raw markup, ready to copy into an email testing tool.</p>
   </div>
 
-  <div class="panel">
-    <h2>Known limits</h2>
+  <div class="card">
+    <div id="message"></div>
+    <label for="file">Select a .eml file</label>
+    <input type="file" id="file" accept=".eml,message/rfc822">
+    <div class="actions">
+      <button type="button" class="btn-primary" id="convert">Convert to HTML</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="results">
+    <div id="results-message"></div>
+    <h2 id="results-heading" tabindex="-1">Decoded HTML</h2>
+    <div class="meta" id="meta"></div>
+    <textarea id="output" readonly spellcheck="false" aria-labelledby="results-heading"></textarea>
+    <div class="actions">
+      <button type="button" class="btn-primary" id="copy">Copy to clipboard</button>
+      <span class="copy-status" id="copy-status" role="status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What this handles</h2>
     <ul class="notes">
-      <li>Inline images stay as <code>cid:</code> references. They will not resolve, which is fine for markup testing.</li>
-      <li>Plain-text-only emails produce a message, not a silent fallback to the text part.</li>
-      <li>Uncommon charsets fall back to UTF-8, and it says so when that happens.</li>
+      <li>Inline images stay as <code>cid:</code> references. They will not resolve, which is fine when you are testing markup rather than rendering the email.</li>
+      <li>Plain-text-only emails produce a message rather than silently handing back the text version.</li>
+      <li>Uncommon character sets fall back to UTF-8, and the page tells you when that happens.</li>
     </ul>
   </div>
-</main>
+
+</div>
 
 <script>
 (function () {
   "use strict";
 
   var fileInput = document.getElementById("file");
-  var statusEl = document.getElementById("status");
+  var convertBtn = document.getElementById("convert");
+  var messageEl = document.getElementById("message");
+  var resultsMessageEl = document.getElementById("results-message");
   var resultsEl = document.getElementById("results");
+  var resultsHeading = document.getElementById("results-heading");
   var metaEl = document.getElementById("meta");
   var outputEl = document.getElementById("output");
   var copyBtn = document.getElementById("copy");
-  var copiedEl = document.getElementById("copied");
+  var copyStatus = document.getElementById("copy-status");
 
   // --- MIME parsing -------------------------------------------------------
 
@@ -285,14 +412,33 @@
 
   // --- Interface ----------------------------------------------------------
 
-  function say(html) {
-    statusEl.innerHTML = html;
+  function escapeText(str) {
+    return String(str).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
   }
 
-  function problem(message) {
-    say('<p class="problem">' + message + "</p>");
+  function clearMessages() {
+    messageEl.innerHTML = "";
+    resultsMessageEl.innerHTML = "";
+  }
+
+  // Messages take focus so the outcome of pressing the button is announced.
+  // Each one sits above the thing it is about: errors above the file input,
+  // because that is what the person needs to change; warnings above the output,
+  // because that is what they need to look at.
+  function showMessage(container, kind, paragraphs) {
+    var html = '<div class="message message-' + kind + '" tabindex="-1">';
+    paragraphs.forEach(function (p) { html += "<p>" + p + "</p>"; });
+    container.innerHTML = html + "</div>";
+    container.firstChild.focus();
+  }
+
+  function fail(paragraphs) {
     resultsEl.classList.add("hidden");
+    resultsMessageEl.innerHTML = "";
     outputEl.value = "";
+    showMessage(messageEl, "error", paragraphs);
   }
 
   function showMeta(rows) {
@@ -303,18 +449,18 @@
     metaEl.innerHTML = html + "</dl>";
   }
 
-  function convert(text, fileName) {
+  function convert(text) {
     var message = splitSection(text);
 
     if (!message.headers["content-type"] && !/^(from|to|subject|date|mime-version):/im.test(text)) {
-      problem("That file does not look like a saved email message. Export it from the mail client as <code>.eml</code> and try again.");
+      fail(["That file is not a saved email message. Export the email from your mail client as a <code>.eml</code> file, then select it again."]);
       return;
     }
 
     var found = findHtmlPart(message);
 
     if (!found) {
-      problem("No HTML part in this email. It looks like a plain-text-only message, so there is nothing for the tester to check. Ask the client for the HTML version.");
+      fail(["There is no HTML part in this email. It is a plain-text-only message, so there is no markup to convert. Ask for the HTML version of the email."]);
       return;
     }
 
@@ -322,59 +468,70 @@
     try {
       decoded = decodePart(found.section);
     } catch (e) {
-      problem("The HTML part could not be decoded: " + e.message);
+      fail(["The HTML part could not be decoded: " + escapeText(e.message)]);
       return;
     }
 
     var html = decoded.text.replace(/^\s+|\s+$/g, "");
     if (!html) {
-      problem("The HTML part decoded to nothing. The file may be truncated.");
+      fail(["The HTML part decoded to nothing. The file may be incomplete. Export the email again and retry."]);
       return;
     }
 
     outputEl.value = html;
+    copyStatus.textContent = "";
     resultsEl.classList.remove("hidden");
-    copiedEl.textContent = "";
-
-    var notes = [];
-    if (found.isAttachment) {
-      notes.push("The only HTML found was an attachment rather than the email body. Worth a look before you trust it.");
-    }
-    if (decoded.fellBack) {
-      notes.push("The stated character set is not supported here, so it was read as UTF-8. Check for odd characters.");
-    }
-    if (notes.length) {
-      say(notes.map(function (n) { return '<p class="problem">' + n + "</p>"; }).join(""));
-    } else {
-      say("<p>Found the HTML part in " + fileName + ".</p>");
-    }
 
     showMeta([
-      ["Subject", message.headers.subject ? escapeText(message.headers.subject) : "(none)"],
+      ["Subject", message.headers.subject ? escapeText(message.headers.subject) : "Not set"],
       ["Encoding", escapeText(decoded.encoding)],
       ["Character set", escapeText(decoded.charset)],
       ["Size", html.length.toLocaleString() + " characters"]
     ]);
+
+    var warnings = [];
+    if (found.isAttachment) {
+      warnings.push("The only HTML in this file is an attachment rather than the email body. Check the output is the email you expected.");
+    }
+    if (decoded.fellBack) {
+      warnings.push("This browser does not support the character set the email declares, so the HTML was read as UTF-8. Check the output for unexpected characters.");
+    }
+
+    messageEl.innerHTML = "";
+
+    if (warnings.length) {
+      showMessage(resultsMessageEl, "warning", warnings);
+    } else {
+      resultsMessageEl.innerHTML = "";
+      resultsHeading.focus();
+    }
   }
 
-  function escapeText(str) {
-    return String(str).replace(/[&<>"]/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
-    });
-  }
-
+  // Choosing a file only changes the selection. Nothing is converted and focus
+  // is not moved until the button is pressed. Results from a previous file are
+  // cleared straight away so the page never shows output for a file that is no
+  // longer selected.
   fileInput.addEventListener("change", function () {
-    var file = fileInput.files && fileInput.files[0];
-    if (!file) { return; }
+    resultsEl.classList.add("hidden");
+    outputEl.value = "";
+    copyStatus.textContent = "";
+    clearMessages();
+  });
 
-    say("<p>Reading " + escapeText(file.name) + "…</p>");
+  convertBtn.addEventListener("click", function () {
+    var file = fileInput.files && fileInput.files[0];
+
+    if (!file) {
+      fail(["No file selected. Choose a <code>.eml</code> file, then press Convert to HTML."]);
+      return;
+    }
 
     var reader = new FileReader();
     reader.onload = function () {
-      convert(reader.result, escapeText(file.name));
+      convert(reader.result);
     };
     reader.onerror = function () {
-      problem("That file could not be read. Try selecting it again.");
+      fail(["That file could not be read. Select it again."]);
     };
     reader.readAsText(file);
   });
@@ -383,17 +540,19 @@
     var value = outputEl.value;
     if (!value) { return; }
 
-    function done() { copiedEl.textContent = "Copied"; }
-    function failed() {
+    function copied() {
+      copyStatus.textContent = "HTML copied";
+    }
+    function notCopied() {
       outputEl.focus();
       outputEl.select();
-      copiedEl.textContent = "Could not copy automatically. The HTML is selected, so press Ctrl+C or Cmd+C.";
+      copyStatus.textContent = "Copying was blocked. The HTML is selected, so press Ctrl+C or Command+C.";
     }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(value).then(done, failed);
+      navigator.clipboard.writeText(value).then(copied, notCopied);
     } else {
-      failed();
+      notCopied();
     }
   });
 })();
